@@ -51,3 +51,25 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Architecture
+
+Plain Vite + React single-page app with client-side routing (React Router) — no SSR.
+
+| Path | Page |
+| --- | --- |
+| `/` | Landing page |
+| `/auth` (alias `/sign-in`) | Sign in |
+| `/signup` (alias `/sign-up`) | Sign up |
+| `/app` | Dashboard (redirects to `/auth` when signed out) |
+
+- Routes: `src/routes.tsx` · Pages: `src/pages/` · Entry: `index.html` → `src/main.tsx`
+- `npm run build` writes a static site to `dist/`.
+
+## Deploy to Vercel
+
+1. Import the repo in Vercel (framework preset: **Vite**, output directory: `dist`).
+2. Add environment variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
+3. Deploy. `vercel.json` rewrites every non-file path to `index.html`, so deep links such as `/app` load the SPA.
+4. In Supabase → Authentication → URL Configuration, add your Vercel domain to the Site URL / Redirect URLs (sign-up confirmation links point to `<origin>/app`).
+
