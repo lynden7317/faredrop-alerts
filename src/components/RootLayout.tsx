@@ -10,7 +10,6 @@ import {
 } from "react-router";
 
 import { supabase } from "@/integrations/supabase/client";
-import { reportLovableError } from "@/lib/lovable-error-reporting";
 
 export function RootLayout() {
   const queryClient = useQueryClient();
@@ -62,7 +61,6 @@ export function RootErrorBoundary() {
 
   useEffect(() => {
     console.error(error);
-    reportLovableError(error, { boundary: "react_router_root_error_boundary" });
   }, [error]);
 
   if (isRouteErrorResponse(error) && error.status === 404) return <NotFound />;
