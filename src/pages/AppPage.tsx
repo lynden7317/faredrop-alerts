@@ -1,11 +1,13 @@
 import { useNavigate } from "react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plane } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { PlanCard } from "@/components/PlanCard";
 import { SiteHeader } from "@/components/SiteHeader";
 import { useAuthUser } from "@/components/RequireAuth";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { PLANS, listSubscriptions, saveSubscription, type Subscription } from "@/lib/flightApi";
 
 export default function AppPage() {
   usePageMeta({
@@ -17,6 +19,28 @@ export default function AppPage() {
   const user = useAuthUser();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const email = (user.email ?? "").toLowerCase();
+  const subsKey = ["subscriptions", email] as const;
+
+  const subsQuery = useQuery({
+    queryKey: subsKey,
+    queryFn: () => listSubscriptions(email),
+    enabled: Boolean(email),
+  });
+
+  const save = useMutation({
+    mutationFn: saveSubscription,
+    onSuccess: (saved) => {
+      // Flip the card to "subscribed" immediately, then refetch the source of truth.
+      queryClient.setQueryData<Subscription[]>(subsKey, (prev = []) => [
+        ...prev.filter((s) => s.route !== saved.route),
+        saved,
+      ]);
+      void queryClient.invalidateQueries({ queryKey: subsKey });
+    },
+  });
+
+  const byRoute = new Map((subsQuery.data ?? []).map((s) => [s.route, s]));
 
   async function signOut() {
     await queryClient.cancelQueries();
@@ -27,20 +51,46 @@ export default function AppPage() {
 
   return (
     <div className="min-h-screen">
-      <SiteHeader right={<Button variant="outline" size="sm" onClick={signOut}>Sign out / 登出</Button>} />
+      <SiteHeader
+        right={
+          <Button variant="outline" size="sm" onClick={signOut}>
+            Sign out / 登出
+          </Button>
+        }
+      />
       <main className="mx-auto max-w-3xl px-4 py-20 sm:px-6">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
           Hi <span className="text-gradient break-all">{user.email}</span>
         </h1>
-        <div className="mt-10 rounded-xl border border-dashed border-border bg-card p-8 text-center">
-          <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-accent">
-            <Plane className="h-5 w-5 text-primary" />
-          </div>
-          <p className="text-lg">你的航線追蹤儀表板即將上線 — 下一個里程碑會加上訂閱航線的功能。</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Your dashboard is coming soon. Route-subscription will be added in the next milestone.
+        <p className="mt-3 text-muted-foreground">
+          選一條航線、設定目標價（台幣），票價降到目標價以下就寄 email 通知你。
+        </p>
+
+        {subsQuery.isError && (
+          <p className="mt-6 text-sm text-destructive">
+            無法載入你的訂閱：{(subsQuery.error as Error).message}
           </p>
+        )}
+
+        <div className="mt-8 grid gap-6 sm:grid-cols-2">
+          {PLANS.map((plan) => (
+            <PlanCard
+              key={plan.name}
+              plan={plan}
+              subscription={byRoute.get(plan.route)}
+              saving={save.isPending && save.variables?.plan_name === plan.name}
+              onSave={async (target_price) => {
+                await save.mutateAsync({ email, plan_name: plan.name, target_price });
+              }}
+            />
+          ))}
         </div>
+
+        {subsQuery.isPending && (
+          <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+            <Plane className="h-4 w-4 animate-pulse" /> 載入訂閱中…
+          </p>
+        )}
       </main>
     </div>
   );
