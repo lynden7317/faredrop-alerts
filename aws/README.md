@@ -15,5 +15,5 @@ the source of truth; these copies are kept in sync for review and redeploys.
 
 Data: DynamoDB `subscriptions` (email, route), `notification_history` (pk = email#route, sent_at) and
 `latest_fares` (route; overwritten by `flight-parser` on every run).
-Config: `s3://flight-config-<ACCOUNT_ID>/flight-routes.json`. Secrets: `flight/travelpayouts`, `flight/resend`.
+Config: `s3://flight-config-<ACCOUNT_ID>/flight-routes.json` (TPE→TYO, SEL, MFM). Adding a route = add it there, to `PLANS` in flight-save-subscription, to `CITY` in flight-fare-notification, and to `PLANS` in src/lib/flightApi.ts. Secrets: `flight/travelpayouts`, `flight/resend`.
 Dedup knobs (env on the notification Lambda): NOTIFY_FLOOR_HOURS=24, REALERT_PCT=20, REALERT_ABS_TWD=2000.

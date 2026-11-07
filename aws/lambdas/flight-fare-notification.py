@@ -5,7 +5,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 
 H = boto3.resource("dynamodb").Table("notification_history")
-CITY = {"TPE": "台北", "TYO": "東京", "SEL": "首爾"}
+CITY = {"TPE": "台北", "TYO": "東京", "SEL": "首爾", "MFM": "澳門"}
 UA = "Mozilla/5.0 (compatible; flight-notifier/1.0)"
 _s = None
 

@@ -7,7 +7,7 @@ export const FLIGHT_API_URL: string = (
   (import.meta.env["VITE_FLIGHT_API_URL"] as string | undefined) || DEFAULT_API_URL
 ).replace(/\/+$/, "");
 
-export type PlanName = "tokyo" | "seoul";
+export type PlanName = "tokyo" | "seoul" | "macau";
 
 export type Plan = {
   name: PlanName;
@@ -18,6 +18,7 @@ export type Plan = {
 export const PLANS: Plan[] = [
   { name: "tokyo", label: "台北 ✈ 東京", route: "TPE-TYO" },
   { name: "seoul", label: "台北 ✈ 首爾", route: "TPE-SEL" },
+  { name: "macau", label: "台北 ✈ 澳門", route: "TPE-MFM" },
 ];
 
 /** Latest cheapest fare per route, written by the flight-parser Lambda every 30 minutes. */

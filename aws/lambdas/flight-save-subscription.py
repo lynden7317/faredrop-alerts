@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 import boto3
 
-PLANS = {"tokyo": ("TPE", "TYO"), "seoul": ("TPE", "SEL")}
+PLANS = {"tokyo": ("TPE", "TYO"), "seoul": ("TPE", "SEL"), "macau": ("TPE", "MFM")}
 T = boto3.resource("dynamodb").Table("subscriptions")
 
 
@@ -25,7 +25,7 @@ def handler(event, context):
     if "@" not in email:
         return resp(400, {"error": "invalid email"})
     if plan not in PLANS:
-        return resp(400, {"error": "plan_name must be tokyo or seoul"})
+        return resp(400, {"error": "plan_name must be tokyo, seoul or macau"})
     if not tp.is_finite() or tp <= 0 or tp > 1000000:
         return resp(400, {"error": "target_price must be a positive TWD amount"})
     tp = tp.quantize(Decimal("1"))
