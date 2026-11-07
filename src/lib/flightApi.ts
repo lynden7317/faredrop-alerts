@@ -13,14 +13,29 @@ export type Plan = {
   name: PlanName;
   label: string;
   route: string;
-  /** Rough recent cheapest fare, shown as a hint for picking a sensible target. */
-  hintTwd: number;
 };
 
 export const PLANS: Plan[] = [
-  { name: "tokyo", label: "台北 ✈ 東京", route: "TPE-TYO", hintTwd: 9325 },
-  { name: "seoul", label: "台北 ✈ 首爾", route: "TPE-SEL", hintTwd: 5989 },
+  { name: "tokyo", label: "台北 ✈ 東京", route: "TPE-TYO" },
+  { name: "seoul", label: "台北 ✈ 首爾", route: "TPE-SEL" },
 ];
+
+/** Latest cheapest fare per route, written by the flight-parser Lambda every 30 minutes. */
+export type LatestFare = {
+  route: string;
+  price_twd: number;
+  price_usd?: number;
+  airline?: string;
+  depart_date?: string;
+  month?: string;
+  checked_at: string;
+};
+
+export async function listFares(): Promise<LatestFare[]> {
+  const res = await fetch(`${FLIGHT_API_URL}/fares`);
+  const body = await parse<{ fares: LatestFare[] }>(res);
+  return body.fares ?? [];
+}
 
 export type Subscription = {
   email: string;

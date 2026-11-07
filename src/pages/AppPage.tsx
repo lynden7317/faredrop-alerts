@@ -7,7 +7,13 @@ import { PlanCard } from "@/components/PlanCard";
 import { SiteHeader } from "@/components/SiteHeader";
 import { useAuthUser } from "@/components/RequireAuth";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { PLANS, listSubscriptions, saveSubscription, type Subscription } from "@/lib/flightApi";
+import {
+  PLANS,
+  listFares,
+  listSubscriptions,
+  saveSubscription,
+  type Subscription,
+} from "@/lib/flightApi";
 
 export default function AppPage() {
   usePageMeta({
@@ -41,6 +47,14 @@ export default function AppPage() {
   });
 
   const byRoute = new Map((subsQuery.data ?? []).map((s) => [s.route, s]));
+
+  // Latest cheapest fares (refreshed by the backend every 30 min; re-poll every 5 min).
+  const faresQuery = useQuery({
+    queryKey: ["fares"],
+    queryFn: listFares,
+    refetchInterval: 5 * 60 * 1000,
+  });
+  const fareByRoute = new Map((faresQuery.data ?? []).map((f) => [f.route, f]));
 
   async function signOut() {
     await queryClient.cancelQueries();
@@ -78,6 +92,8 @@ export default function AppPage() {
               key={plan.name}
               plan={plan}
               subscription={byRoute.get(plan.route)}
+              fare={fareByRoute.get(plan.route)}
+              fareLoading={faresQuery.isPending}
               saving={save.isPending && save.variables?.plan_name === plan.name}
               onSave={async (target_price) => {
                 await save.mutateAsync({ email, plan_name: plan.name, target_price });

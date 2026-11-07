@@ -8,6 +8,7 @@ UA = "Mozilla/5.0 (compatible; flight-notifier/1.0)"
 _sm = boto3.client("secretsmanager")
 _sqs = boto3.client("sqs")
 _tbl = boto3.resource("dynamodb").Table("subscriptions")
+_fares = boto3.resource("dynamodb").Table("latest_fares")
 _token = None
 _qurl = None
 
@@ -65,6 +66,12 @@ def handler(event, context):
     us = fetch_cheapest(origin, dest, month, "usd")
     print(route, month, "cheapest", tw["price"], "TWD", tw["airline"],
           "| USD", us["price"] if us else None)
+    snap = {"route": route, "price_twd": Decimal(str(tw["price"])), "airline": tw["airline"] or "-",
+            "depart_date": tw["depart_date"] or "", "month": month,
+            "checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    if us:
+        snap["price_usd"] = Decimal(str(us["price"]))
+    _fares.put_item(Item=snap)
     items, kw = [], {"FilterExpression": Attr("route").eq(route)}
     while True:
         page = _tbl.scan(**kw)
