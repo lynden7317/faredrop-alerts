@@ -10,7 +10,8 @@ def handler(event, context):
     routes = json.loads(obj["Body"].read())
     for r in routes:
         payload = {"origin": r["origin"], "destination": r["destination"],
-                   "route": f'{r["origin"]}-{r["destination"]}', "plan": r.get("plan")}
+                   "route": f'{r["origin"]}-{r["destination"]}', "plan": r.get("plan"),
+                   "trip": f'{r.get("origin_city", r["origin"])} → {r.get("city", r["destination"])}'}
         lam.invoke(FunctionName="flight-parser", InvocationType="Event",
                    Payload=json.dumps(payload).encode())
         print("dispatched", payload["route"])

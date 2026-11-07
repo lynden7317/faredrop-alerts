@@ -5,7 +5,6 @@ import boto3
 from boto3.dynamodb.conditions import Key
 
 H = boto3.resource("dynamodb").Table("notification_history")
-CITY = {"TPE": "台北", "TYO": "東京", "SEL": "首爾", "MFM": "澳門"}
 UA = "Mozilla/5.0 (compatible; flight-notifier/1.0)"
 _s = None
 
@@ -28,9 +27,8 @@ def link(route, f):
 
 
 def render(m):
-    o, d = m["route"].split("-")
     f, u = m["cheapest"], m.get("cheapest_usd")
-    trip = f"{CITY.get(o, o)} → {CITY.get(d, d)}"
+    trip = m.get("trip") or m["route"].replace("-", " → ")
     subj = f"✈️ {trip} 降價通知！{nt(f['price'])} 已達標"
     dates = f"{(f.get('depart_date') or '')[:10]} 出發 / {(f.get('return_date') or '')[:10]} 回程"
     usd = f"約 US${u['price']}" if u else ""

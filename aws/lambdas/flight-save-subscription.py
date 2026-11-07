@@ -1,9 +1,21 @@
-import base64, json
+import base64, json, os, time
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 import boto3
 
-PLANS = {"tokyo": ("TPE", "TYO"), "seoul": ("TPE", "SEL"), "macau": ("TPE", "MFM")}
+S3 = boto3.client("s3")
+_plans, _at = {}, 0.0
+
+
+def plans():
+    global _plans, _at
+    if time.time() - _at > 60:
+        body = S3.get_object(Bucket=os.environ["CONFIG_BUCKET"], Key="flight-routes.json")["Body"].read()
+        _plans = {r["plan"]: (r["origin"], r["destination"]) for r in json.loads(body)}
+        _at = time.time()
+    return _plans
+
+
 T = boto3.resource("dynamodb").Table("subscriptions")
 
 
@@ -24,12 +36,12 @@ def handler(event, context):
         return resp(400, {"error": "invalid request body"})
     if "@" not in email:
         return resp(400, {"error": "invalid email"})
-    if plan not in PLANS:
-        return resp(400, {"error": "plan_name must be tokyo, seoul or macau"})
+    if plan not in plans():
+        return resp(400, {"error": "unknown plan_name"})
     if not tp.is_finite() or tp <= 0 or tp > 1000000:
         return resp(400, {"error": "target_price must be a positive TWD amount"})
     tp = tp.quantize(Decimal("1"))
-    origin, dest = PLANS[plan]
+    origin, dest = plans()[plan]
     route = f"{origin}-{dest}"
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     T.update_item(

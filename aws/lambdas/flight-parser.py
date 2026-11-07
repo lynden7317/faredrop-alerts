@@ -85,7 +85,7 @@ def handler(event, context):
         if tp is None or Decimal(tp) < Decimal(str(tw["price"])):
             continue
         body = {"email": it["email"], "route": route, "plan_name": it.get("plan_name"),
-                "target_price": int(tp), "cheapest": tw}
+                "target_price": int(tp), "cheapest": tw, "trip": event.get("trip") or route}
         if us:
             body["cheapest_usd"] = us
         _sqs.send_message(QueueUrl=qurl(), MessageBody=json.dumps(body))

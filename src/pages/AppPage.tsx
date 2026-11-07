@@ -8,7 +8,8 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { useAuthUser } from "@/components/RequireAuth";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import {
-  PLANS,
+  FALLBACK_PLANS,
+  listRoutes,
   listFares,
   listSubscriptions,
   saveSubscription,
@@ -47,6 +48,14 @@ export default function AppPage() {
   });
 
   const byRoute = new Map((subsQuery.data ?? []).map((s) => [s.route, s]));
+
+  // Routes come from the backend config (S3 flight-routes.json) — add a route there, not here.
+  const routesQuery = useQuery({
+    queryKey: ["routes"],
+    queryFn: listRoutes,
+    staleTime: 5 * 60 * 1000,
+  });
+  const plans = routesQuery.data?.length ? routesQuery.data : FALLBACK_PLANS;
 
   // Latest cheapest fares (refreshed by the backend every 30 min; re-poll every 5 min).
   const faresQuery = useQuery({
@@ -87,7 +96,7 @@ export default function AppPage() {
         )}
 
         <div className="mt-8 grid gap-6 sm:grid-cols-2">
-          {PLANS.map((plan) => (
+          {plans.map((plan) => (
             <PlanCard
               key={plan.name}
               plan={plan}

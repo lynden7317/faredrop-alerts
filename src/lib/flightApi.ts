@@ -7,7 +7,8 @@ export const FLIGHT_API_URL: string = (
   (import.meta.env["VITE_FLIGHT_API_URL"] as string | undefined) || DEFAULT_API_URL
 ).replace(/\/+$/, "");
 
-export type PlanName = "tokyo" | "seoul" | "macau";
+/** Plan id from flight-routes.json in S3 (e.g. "tokyo"). Routes are config, not code. */
+export type PlanName = string;
 
 export type Plan = {
   name: PlanName;
@@ -15,11 +16,18 @@ export type Plan = {
   route: string;
 };
 
-export const PLANS: Plan[] = [
+/** Fallback shown only if GET /routes is unreachable; the S3 config is the source of truth. */
+export const FALLBACK_PLANS: Plan[] = [
   { name: "tokyo", label: "台北 ✈ 東京", route: "TPE-TYO" },
   { name: "seoul", label: "台北 ✈ 首爾", route: "TPE-SEL" },
   { name: "macau", label: "台北 ✈ 澳門", route: "TPE-MFM" },
 ];
+
+export async function listRoutes(): Promise<Plan[]> {
+  const res = await fetch(`${FLIGHT_API_URL}/routes`);
+  const body = await parse<{ routes: Plan[] }>(res);
+  return body.routes ?? [];
+}
 
 /** Latest cheapest fare per route, written by the flight-parser Lambda every 30 minutes. */
 export type LatestFare = {

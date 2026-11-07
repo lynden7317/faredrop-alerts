@@ -1,0 +1,5 @@
+[
+ {"plan": "tokyo", "origin": "TPE", "destination": "TYO", "label": "台北 ✈ 東京", "origin_city": "台北", "city": "東京"},
+ {"plan": "seoul", "origin": "TPE", "destination": "SEL", "label": "台北 ✈ 首爾", "origin_city": "台北", "city": "首爾"},
+ {"plan": "macau", "origin": "TPE", "destination": "MFM", "label": "台北 ✈ 澳門", "origin_city": "台北", "city": "澳門"}
+]
