@@ -1,4 +1,5 @@
-import { useNavigate } from "react-router";
+import { useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plane } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +10,8 @@ import { useAuthUser } from "@/components/RequireAuth";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import {
   FALLBACK_PLANS,
+  cancelSubscription,
+  goToCheckout,
   listRoutes,
   listFares,
   listSubscriptions,
@@ -29,20 +32,50 @@ export default function AppPage() {
   const email = (user.email ?? "").toLowerCase();
   const subsKey = ["subscriptions", email] as const;
 
+  // Back from ECPay: OrderResultURL → flight-ecpay-result → /app?purchase=success|failed.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const purchase = searchParams.get("purchase");
+
   const subsQuery = useQuery({
     queryKey: subsKey,
     queryFn: () => listSubscriptions(email),
     enabled: Boolean(email),
+    // The ReturnURL callback may land a few seconds after the browser does — poll briefly.
+    refetchInterval: (q) =>
+      purchase === "success" &&
+      !(q.state.data ?? []).some((s) => s.subscription_status === "active") &&
+      q.state.dataUpdateCount < 10
+        ? 3000
+        : false,
   });
+
+  useEffect(() => {
+    if (!purchase) return;
+    const t = setTimeout(() => setSearchParams({}, { replace: true }), 30000);
+    return () => clearTimeout(t);
+  }, [purchase, setSearchParams]);
+
+  const upsert = (saved: Partial<Subscription> & { route: string }) =>
+    queryClient.setQueryData<Subscription[]>(subsKey, (prev = []) =>
+      prev.map((s) => (s.route === saved.route ? { ...s, ...saved } : s)),
+    );
 
   const save = useMutation({
     mutationFn: saveSubscription,
-    onSuccess: (saved) => {
-      // Flip the card to "subscribed" immediately, then refetch the source of truth.
-      queryClient.setQueryData<Subscription[]>(subsKey, (prev = []) => [
-        ...prev.filter((s) => s.route !== saved.route),
-        saved,
-      ]);
+    onSuccess: (result) => {
+      if (result.kind === "checkout") {
+        goToCheckout(result.html); // leaves the SPA for ECPay's cashier
+        return;
+      }
+      upsert(result.subscription);
+      void queryClient.invalidateQueries({ queryKey: subsKey });
+    },
+  });
+
+  const cancel = useMutation({
+    mutationFn: cancelSubscription,
+    onSuccess: (res, vars) => {
+      upsert({ route: vars.route, ...res });
       void queryClient.invalidateQueries({ queryKey: subsKey });
     },
   });
@@ -89,6 +122,17 @@ export default function AppPage() {
           選一條航線、設定目標價（台幣），票價降到目標價以下就寄 email 通知你。
         </p>
 
+        {purchase === "success" && (
+          <p className="mt-6 rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 text-sm">
+            付款完成，謝謝！訂閱狀態會在幾秒內更新為「已訂閱（有效）」，並寄一封確認信給你。
+          </p>
+        )}
+        {purchase === "failed" && (
+          <p className="mt-6 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
+            付款沒有完成，這次沒有扣款。可以在下方按「完成付款」再試一次。
+          </p>
+        )}
+
         {subsQuery.isError && (
           <p className="mt-6 text-sm text-destructive">
             無法載入你的訂閱：{(subsQuery.error as Error).message}
@@ -104,8 +148,12 @@ export default function AppPage() {
               fare={fareByRoute.get(plan.route)}
               fareLoading={faresQuery.isPending}
               saving={save.isPending && save.variables?.plan_name === plan.name}
+              cancelling={cancel.isPending && cancel.variables?.route === plan.route}
               onSave={async (target_price) => {
                 await save.mutateAsync({ email, plan_name: plan.name, target_price });
+              }}
+              onCancel={async () => {
+                await cancel.mutateAsync({ email, route: plan.route });
               }}
             />
           ))}
