@@ -5,7 +5,8 @@ from boto3.dynamodb.conditions import Key
 
 T = boto3.resource("dynamodb").Table("subscriptions")
 FIELDS = ("email", "route", "plan_name", "origin", "destination", "target_price",
-          "currency", "created_at", "updated_at")
+          "currency", "created_at", "updated_at", "subscription_status", "current_period_end",
+          "current_period_end_date", "cancelled_at")
 
 
 def resp(code, body):

@@ -79,8 +79,20 @@ def handler(event, context):
         if "LastEvaluatedKey" not in page:
             break
         kw["ExclusiveStartKey"] = page["LastEvaluatedKey"]
-    matched = 0
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")  # same format the callbacks write
+    matched = served = 0
     for it in items:
+        st, end = it.get("subscription_status"), it.get("current_period_end", "")
+        if st == "cancelled" and end < now:  # grace period over → retire the row lazily
+            _tbl.update_item(Key={"email": it["email"], "route": it["route"]},
+                             UpdateExpression="SET subscription_status=:x, expired_at=:n",
+                             ConditionExpression="subscription_status=:c",
+                             ExpressionAttributeValues={":x": "expired", ":n": now, ":c": "cancelled"})
+            print("expired (grace over)", it["email"], route, end)
+            continue
+        if not (st == "active" or (st == "cancelled" and end >= now)):
+            continue  # paywall: pending_payment / expired / legacy rows without a status get no alerts
+        served += 1
         tp = it.get("target_price")
         if tp is None or Decimal(tp) < Decimal(str(tw["price"])):
             continue
@@ -90,5 +102,5 @@ def handler(event, context):
             body["cheapest_usd"] = us
         _sqs.send_message(QueueUrl=qurl(), MessageBody=json.dumps(body))
         matched += 1
-    print(route, "subscribers", len(items), "matched", matched)
+    print(route, "subscribers", len(items), "paid", served, "matched", matched)
     return {"ok": True, "route": route, "matched": matched, "cheapest_twd": tw["price"]}
